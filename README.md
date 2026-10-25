@@ -4,6 +4,7 @@ calendar sheet with a unique historical quote and an exclusive "Song of the Day"
 day of the year.
 ##  Live Demo
 https://Jorgoi.github.io/dailyspark/
+![dailyspark calendar screenshot] (screenshot.png)
 ##  Features
 - **365 Daily Quotes**: Curated wisdom from world history, deterministically shuffled and
 synchronized annually using a Mulberry32 PRNG so everyone sees the same quote on the
