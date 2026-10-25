@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Quote & Song Calendar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans
+text-slate-800">
+<!-- Calendar Sheet Container -->
+<main class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border
+border-slate-200 transition-all">
+<!-- Top Calendar Header (Jetzt Orange) -->
+<header class="bg-orange-600 text-white text-center py-4 px-6 relative">
+<div class="flex justify-between max-w-[140px] mx-auto mb-2">
+<span class="w-3 h-3 bg-slate-100 rounded-full shadow-inner inline-block"></span>
+<span class="w-3 h-3 bg-slate-100 rounded-full shadow-inner inline-block"></span>
+</div>
+<p id="month-year" class="text-sm uppercase tracking-widest font-semibold
+opacity-90">Loading Date...</p>
+<h1 id="weekday" class="text-xl font-bold mt-0.5">...</h1>
+</header>
+<!-- Main Content: Day & Quote -->
+<section class="p-8 text-center">
+<!-- Große Tageszahl (Jetzt leuchtendes Blau: text-blue-600) -->
+<div id="day-number" class="text-7xl font-black text-blue-600 tracking-tighter mb-2">
+--
+</div>
+<p id="day-of-year" class="text-xs text-slate-400 uppercase tracking-wider mb-8">
+Day -- of 365
+</p>
+<!-- Quote Box -->
+<blockquote class="min-h-[110px] flex flex-col justify-center items-center px-2">
+<p id="quote-text" class="text-xl font-serif italic text-slate-700 leading-relaxed">
+“Loading quote...”
+</p>
+<footer id="quote-author" class="mt-4 text-sm font-medium text-slate-500">
+—
+</footer>
+
+</blockquote>
+<!-- Collapsible Song Box -->
+<div id="song-box" class="hidden mt-6 pt-6 border-t border-slate-100 text-left bg-slate-50
+rounded-xl p-4 transition-all">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[10px] uppercase tracking-wider font-bold text-orange-600 block
+mb-0.5">
+Your Song of the Day
+</span>
+<p id="song-title" class="font-bold text-slate-800 text-base leading-snug">...</p>
+<p id="song-artist" class="text-sm text-slate-500">...</p>
+</div>
+<a id="song-link" href="#" target="_blank" rel="noopener noreferrer"
+class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-2
+rounded-lg shadow-sm transition shrink-0 ml-3">
+▶ Listen
+</a>
+</div>
+</div>
+</section>
+<!-- Bottom Action Bar -->
+<footer class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between
+items-center text-sm gap-2">
+<button id="btn-song" class="bg-white border border-slate-200 hover:bg-slate-100
+text-slate-700 px-3.5 py-1.5 rounded-lg font-medium flex items-center gap-1.5 shadow-sm
+transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white">
+<span id="btn-song-icon">🎵</span>
+<span id="btn-song-text">Draw Song of the Day</span>
+</button>
+<button id="btn-copy" class="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-1.5
+rounded-lg font-medium transition shrink-0">
+Copy Quote
+</button>
+</footer>
+</main>
+<script>
+let quotesDB = [];
+let songsDB = [];
+let currentQuote = null;
+
+let todaysSong = null;
+const STORAGE_KEY = 'daily_calendar_song_revealed_date';
+function getDateKey(date) {
+return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+function getDayOfYear(date) {
+const start = new Date(date.getFullYear(), 0, 0);
+const diff = (date - start) + ((start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 *
+1000);
+const oneDay = 1000 * 60 * 60 * 24;
+return Math.floor(diff / oneDay);
+}
+function isLeapYear(year) {
+return ((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0);
+}
+function createSeededRandom(seed) {
+return function() {
+let t = seed += 0x6D2B79F5;
+t = Math.imul(t ^ (t >>> 15), t | 1);
+t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+}
+function getShuffledArray(array, seed) {
+const rng = createSeededRandom(seed);
+const shuffled = [...array];
+for (let i = shuffled.length - 1; i > 0; i--) {
+const j = Math.floor(rng() * (i + 1));
+[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+}
+return shuffled;
+}
+function getDailyItem(date, array, seedOffset = 0) {
+const year = date.getFullYear();
+const dayOfYear = getDayOfYear(date);
+const shuffled = getShuffledArray(array, year + seedOffset);
+const index = (dayOfYear - 1) % shuffled.length;
+
+return shuffled[index];
+}
+function renderDateHeader(date) {
+const months = ["January", "February", "March", "April", "May", "June", "July", "August",
+"September", "October", "November", "December"];
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+"Saturday"];
+const totalDaysInYear = isLeapYear(date.getFullYear()) ? 366 : 365;
+document.getElementById('month-year').textContent = `${months[date.getMonth()]}
+${date.getFullYear()}`;
+document.getElementById('weekday').textContent = weekdays[date.getDay()];
+document.getElementById('day-number').textContent = date.getDate();
+document.getElementById('day-of-year').textContent = `Day ${getDayOfYear(date)} of
+${totalDaysInYear}`;
+}
+function displayQuote(quote) {
+currentQuote = quote;
+document.getElementById('quote-text').textContent = `“${quote.text}”`;
+document.getElementById('quote-author').textContent = quote.author ? `— ${quote.author}`
+: '';
+}
+function revealTodaysSong(date) {
+if (!todaysSong) return;
+document.getElementById('song-title').textContent = todaysSong.title;
+document.getElementById('song-artist').textContent = todaysSong.year
+? `${todaysSong.artist} (${todaysSong.year})`
+: todaysSong.artist;
+const searchQuery = encodeURIComponent(`${todaysSong.artist} ${todaysSong.title}`);
+document.getElementById('song-link').href = todaysSong.url ||
+`https://www.youtube.com/results?search_query=${searchQuery}`;
+document.getElementById('song-box').classList.remove('hidden');
+const btnSong = document.getElementById('btn-song');
+btnSong.disabled = true;
+document.getElementById('btn-song-icon').textContent = '✓';
+document.getElementById('btn-song-text').textContent = 'Song drawn today';
+
+localStorage.setItem(STORAGE_KEY, getDateKey(date));
+}
+async function initCalendar() {
+const today = new Date();
+renderDateHeader(today);
+try {
+const [quotesRes, songsRes] = await Promise.all([
+fetch('./quotes.json'),
+fetch('./songs.json')
+]);
+quotesDB = await quotesRes.json();
+songsDB = await songsRes.json();
+if (quotesDB.length > 0) {
+const todaysQuote = getDailyItem(today, quotesDB, 0);
+displayQuote(todaysQuote);
+}
+if (songsDB.length > 0) {
+todaysSong = getDailyItem(today, songsDB, 10000);
+const lastRevealedDate = localStorage.getItem(STORAGE_KEY);
+if (lastRevealedDate === getDateKey(today)) {
+revealTodaysSong(today);
+}
+}
+} catch (error) {
+document.getElementById('quote-text').textContent = "Error loading databases.";
+console.error(error);
+}
+}
+document.getElementById('btn-song').addEventListener('click', () => {
+revealTodaysSong(new Date());
+});
+document.getElementById('btn-copy').addEventListener('click', (e) => {
+if (!currentQuote) return;
+const textToCopy = `“${currentQuote.text}” ${currentQuote.author ? '– ' +
+currentQuote.author : ''}`;
+navigator.clipboard.writeText(textToCopy);
+
+const btn = e.target;
+const originalText = btn.textContent;
+btn.textContent = "Copied! ✓";
+setTimeout(() => btn.textContent = originalText, 2000);
+});
+initCalendar();
+</script>
+</body>
+</html>
